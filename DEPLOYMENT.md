@@ -122,6 +122,13 @@ ssh <user>@<server> "sed -i 's/^TELEGRAM_ALLOWED_USERNAMES=.*/TELEGRAM_ALLOWED_U
 ssh <user>@<server> 'cd /opt/homelab/projects/pdf-to-anki && sudo docker compose up -d bot'
 ```
 
+Same pattern for the cleanup model, e.g. switching to Haiku 4.5:
+
+```bash
+ssh <user>@<server> "sed -i 's/^CLAUDE_MODEL=.*/CLAUDE_MODEL=claude-haiku-4-5-20251001/' /opt/homelab/projects/pdf-to-anki/.env"
+ssh <user>@<server> 'cd /opt/homelab/projects/pdf-to-anki && sudo docker compose pull && sudo docker compose up -d'
+```
+
 ## Verify
 
 ```bash
@@ -138,7 +145,15 @@ See the [Troubleshooting](README.md#troubleshooting) section in the README for
 bot/worker-level issues. Deploy-specific ones:
 
 - **Workflow's deploy job fails to connect.** Check `SERVER_HOST`/`SERVER_USER`
-  are correct and the deploy key is still in the server's `authorized_keys`.
+  are correct and the deploy key is still in the server's `authorized_keys`. If
+  the job instead times out (`dial tcp ...:22: i/o timeout`) rather than being
+  rejected, the server isn't reachable from the public internet on port 22 (e.g.
+  a homelab box with SSH only exposed on the LAN) — the secrets can be entirely
+  correct and it'll still fail. In that case, deploy manually from a machine
+  that *can* reach it (see the SSH commands throughout this doc: `docker compose
+  pull && docker compose up -d`), and `git push` only for CI to build/publish
+  the image, not to reach the server itself. The server is at `192.168.1.172`,
+  user `deepthinker`, port 22.
 - **`docker compose pull` fails on the server.** The GHCR PAT may have expired,
   or `docker login ghcr.io` on the server needs re-running with a fresh
   `GHCR_TOKEN`.
