@@ -40,7 +40,7 @@ apkg_path = pdf_to_anki(uploaded_bytes)      # returns a Path to the .apkg
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | *(required)* | Claude API key |
-| `CLAUDE_MODEL` | `claude-sonnet-5` | model used for cleanup |
+| `CLAUDE_MODEL` | `claude-haiku-4-5-20251001` | model used for cleanup |
 | `QUESTION_MARKER_RGB` | `80,148,110` | the colour that marks questions |
 | `QUESTION_MARKER_TOLERANCE` | `30` | per-channel RGB match tolerance |
 

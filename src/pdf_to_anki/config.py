@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-DEFAULT_MODEL = "claude-sonnet-5"
+DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 DEFAULT_MARKER_RGB = (80, 148, 110)
 DEFAULT_TOLERANCE = 30
 
