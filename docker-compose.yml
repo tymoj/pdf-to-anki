@@ -1,0 +1,75 @@
+name: pdf-to-anki
+
+# Shared config for the app container.
+x-app: &app
+  build:
+    context: .
+  # Locally this gets built and tagged as below. In production `docker compose
+  # pull` fetches this same tag from GHCR instead of building on the server.
+  image: ghcr.io/tymoj/pdf-to-anki:latest
+  env_file: .env
+  environment:
+    # Compose-internal hostnames. These override whatever .env says, because a
+    # localhost default that works on the host is wrong inside the network.
+    S3_ENDPOINT_URL: http://minio:9000
+    # Where a Telegram user can actually reach MinIO. Pre-signed links for decks
+    # over the 50 MB send limit are signed against this, not against the private
+    # hostname above. Set it to your public address when not testing locally.
+    S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  depends_on:
+    minio:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    # Host ports are overridable: 9000/9001 are commonly taken (SSH tunnels, other
+    # MinIO instances). The container ports never change, so S3_ENDPOINT_URL stays
+    # http://minio:9000 on the compose network regardless.
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"  # S3 API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # mc ships inside the minio image; there is no curl to probe /health with.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  # One-shot: creates the bucket so the app never races an absent one. The bot
+  # also calls ensure_bucket() at startup; this makes it true before it even asks.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MC_HOST_local: http://${S3_ACCESS_KEY:-minioadmin}:${S3_SECRET_KEY:-minioadmin}@minio:9000
+      S3_BUCKET: ${S3_BUCKET:-pdf-to-anki}
+    # Spelled out as an argv list: compose shell-splits a `command:` string and
+    # would drop everything after the `&&`.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'mc mb --ignore-existing "local/$$S3_BUCKET" && echo "bucket ready $$S3_BUCKET"'
+    # Runs once and exits 0; without this it would be restarted forever.
+    restart: "no"
+
+  bot:
+    <<: *app
+    command: ["pdf-to-anki-bot"]
+
+volumes:
+  minio-data:

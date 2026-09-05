@@ -9,10 +9,13 @@ dependencies = [
     "anthropic>=1.0",
     "python-dotenv>=1.0",
     "pydantic>=2",
+    "python-telegram-bot>=21",
+    "boto3>=1.34",
 ]
 
 [project.scripts]
 pdf-to-anki = "pdf_to_anki.cli:main"
+pdf-to-anki-bot = "pdf_to_anki.bot.main:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

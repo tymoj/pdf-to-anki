@@ -1,0 +1,28 @@
+.git
+.gitignore
+.github
+
+.venv
+__pycache__
+*.py[cod]
+*.egg-info
+dist
+build
+
+.pytest_cache
+.coverage
+htmlcov
+tests
+
+# Course material and generated decks: not ours to ship inside an image.
+pdf
+apkg
+*.apkg
+
+# Secrets live in the environment, never in a layer.
+.env
+
+.idea
+*.iml
+README.md
+scripts
