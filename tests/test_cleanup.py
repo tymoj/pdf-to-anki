@@ -365,6 +365,47 @@ def test_image_owned_by_one_card_but_shown_by_its_neighbour_stays_put(settings, 
     assert "dropped image" not in caplog.text
 
 
+def test_repeated_split_with_duplicate_question_text_collapses_to_longest_answer(
+    settings, caplog
+):
+    # Reproduces a real production deck: the model restarted the same answer
+    # three times, cutting off at the identical point, before completing it.
+    cards = [card(0)]
+    stub = "<p>Hiatusleukemicus tähendab <b></p>"
+    full = (
+        "<p>Hiatusleukemicus tähendab <b>vahet</b> blastide ja küpsete "
+        "rakkude vahel.</p>"
+    )
+    client = mock_client(
+        CleanupResponse(
+            cards=[
+                out(0, html=stub),
+                out(0, html=stub),
+                out(0, html=stub),
+                out(0, html=full),
+            ]
+        )
+    )
+
+    with caplog.at_level("WARNING"):
+        result = cleanup_cards(cards, settings, client=client)
+
+    assert len(result) == 1
+    assert result[0].answer_html == full
+    assert "collapsed 3 repeated" in caplog.text
+
+
+def test_split_with_distinct_questions_is_not_treated_as_a_duplicate(settings, caplog):
+    cards = [card(0)]
+    client = mock_client(CleanupResponse(cards=[out(0, "a"), out(0, "b")]))
+
+    with caplog.at_level("WARNING"):
+        result = cleanup_cards(cards, settings, client=client)
+
+    assert [c.question_text for c in result] == ["Küsimus 0a?", "Küsimus 0b?"]
+    assert "collapsed" not in caplog.text
+
+
 def test_the_same_image_may_appear_in_two_different_cards(settings):
     # Two notes showing one picture is fine; only a repeat inside one note is not.
     a = ExtractedCard(0, "Küsimus 0?", INLINE_A, 1, [image(11)])

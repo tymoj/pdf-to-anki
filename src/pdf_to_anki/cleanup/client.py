@@ -121,12 +121,50 @@ def _rebuild(cards: list[ExtractedCard], parsed: CleanupResponse) -> list[Cleane
     return result
 
 
+def _dedupe_repeated_splits(
+    card: ExtractedCard, outs: list[CleanedCardOut]
+) -> list[CleanedCardOut]:
+    """Collapse split sub-cards that share an identical question_text.
+
+    A genuine split produces distinct atomic questions (see SPLITTING in
+    prompts.py); several sub-cards repeating the exact same question_text
+    instead is the signature of a generation hiccup - the model restarting an
+    answer mid-stream and cutting off at the same point each time - not an
+    intentional split. Keep only the most complete (longest) answer for each
+    repeated question and drop the rest.
+    """
+    if len(outs) < 2:
+        return outs
+
+    best_by_question: dict[str, CleanedCardOut] = {}
+    order: list[str] = []
+    for out in outs:
+        existing = best_by_question.get(out.question_text)
+        if existing is None:
+            best_by_question[out.question_text] = out
+            order.append(out.question_text)
+        elif len(out.answer_html) > len(existing.answer_html):
+            best_by_question[out.question_text] = out
+
+    deduped = [best_by_question[question] for question in order]
+    if len(deduped) < len(outs):
+        logger.warning(
+            "Card %d: collapsed %d repeated sub-card(s) with duplicate question_text "
+            "into %d (kept the most complete answer for each).",
+            card.order_index,
+            len(outs) - len(deduped),
+            len(deduped),
+        )
+    return deduped
+
+
 def _merge(
     card: ExtractedCard,
     outs: list[CleanedCardOut],
     known: set[str],
     shown: set[str],
 ) -> list[CleanedCard]:
+    outs = _dedupe_repeated_splits(card, outs)
     htmls = _reconcile_images(card, outs, known, shown)
     return [
         CleanedCard(
