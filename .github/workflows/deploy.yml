@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and Push
 
 on:
   push:
@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   build-push:
+    # The server runs watchtower, which polls GHCR and pulls/restarts the
+    # bot on its own - this workflow only needs to publish the image.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,37 +37,3 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/pdf-to-anki:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    needs: build-push
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Copy docker-compose.yml to server
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml"
-          target: "/opt/homelab/projects/pdf-to-anki"
-          overwrite: true
-
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u tymoj --password-stdin
-            cd /opt/homelab/projects/pdf-to-anki
-            sudo grep -q '^TELEGRAM_API_ID=' .env \
-              && sudo sed -i "s|^TELEGRAM_API_ID=.*|TELEGRAM_API_ID=${{ secrets.TELEGRAM_API_ID }}|" .env \
-              || echo "TELEGRAM_API_ID=${{ secrets.TELEGRAM_API_ID }}" | sudo tee -a .env > /dev/null
-            sudo grep -q '^TELEGRAM_API_HASH=' .env \
-              && sudo sed -i "s|^TELEGRAM_API_HASH=.*|TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}|" .env \
-              || echo "TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}" | sudo tee -a .env > /dev/null
-            sudo docker compose pull
-            sudo docker compose up -d
