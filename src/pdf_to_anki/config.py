@@ -86,6 +86,12 @@ class BotSettings:
     max_upload_bytes: int = 2000 * 1024 * 1024
     telegram_api_base_url: str = "https://api.telegram.org/bot"
     telegram_api_base_file_url: str = "https://api.telegram.org/file/bot"
+    # Must match whether TELEGRAM_API_BASE_URL points at a --local Bot API
+    # server: in local mode getFile returns a filesystem path on that server
+    # instead of a URL, so python-telegram-bot needs to know to read it off
+    # disk (see docker-compose.yml's shared telegram-bot-api-data volume)
+    # rather than attempt an HTTP download.
+    telegram_local_mode: bool = False
 
     @classmethod
     def load(cls) -> "BotSettings":
@@ -107,6 +113,8 @@ class BotSettings:
             telegram_api_base_file_url=os.environ.get(
                 "TELEGRAM_API_BASE_FILE_URL", "https://api.telegram.org/file/bot"
             ),
+            telegram_local_mode=os.environ.get("TELEGRAM_LOCAL_MODE", "false").lower()
+            in {"1", "true", "yes"},
         )
 
 

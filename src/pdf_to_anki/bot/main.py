@@ -23,6 +23,7 @@ def build_application(settings: BotSettings, storage: Storage | None = None) -> 
         .token(settings.telegram_bot_token)
         .base_url(settings.telegram_api_base_url)
         .base_file_url(settings.telegram_api_base_file_url)
+        .local_mode(settings.telegram_local_mode)
         .concurrent_updates(True)
         .build()
     )

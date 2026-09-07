@@ -203,3 +203,15 @@ bot/worker-level issues. Deploy-specific ones:
   a wrong or missing `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` in `.env`. Also note
   that container's first boot can take a few seconds to authenticate with
   Telegram before the bot can use it.
+- **`telegram.error.BadRequest: File is too big` even on a file under 2000
+  MB.** The `telegram-bot-api` service isn't actually running in `--local`
+  mode (`TELEGRAM_LOCAL=1`) — without it, a self-hosted server still enforces
+  the public API's 20 MB/50 MB caps. If it *is* in local mode, this instead
+  means the bot can't read the file off the shared `telegram-bot-api-data`
+  volume: local mode makes `getFile` return a path on the `telegram-bot-api`
+  container's own filesystem rather than a URL, and that server always writes
+  as its fixed internal uid/gid (`101:101` in the `aiogram/telegram-bot-api`
+  image) — which is why the `bot` service in `docker-compose.yml` runs as
+  that same uid. If a future image version changes that uid, `docker exec
+  <telegram-bot-api container> id telegram-bot-api` shows the current one to
+  match `bot`'s `user:` setting against.

@@ -19,6 +19,10 @@ x-app: &app
     LOG_LEVEL: ${LOG_LEVEL:-INFO}
     TELEGRAM_API_BASE_URL: http://telegram-bot-api:8081/bot
     TELEGRAM_API_BASE_FILE_URL: http://telegram-bot-api:8081/file/bot
+    # Matches the telegram-bot-api service's --local mode below: getFile then
+    # returns a path on that server's own filesystem instead of a URL, so the
+    # bot must read the download off a shared volume rather than over HTTP.
+    TELEGRAM_LOCAL_MODE: "true"
   depends_on:
     minio:
       condition: service_healthy
@@ -34,6 +38,12 @@ services:
     environment:
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:?set TELEGRAM_API_ID in .env - get one free from https://my.telegram.org}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:?set TELEGRAM_API_HASH in .env - get one free from https://my.telegram.org}
+      # Without this, even a self-hosted server still enforces the public
+      # API's 20 MB/50 MB limits - --local is what actually raises them to
+      # 2000 MB. This is also what makes getFile return an absolute path on
+      # this container's own filesystem, which is why the bot shares this
+      # volume below instead of downloading over HTTP.
+      TELEGRAM_LOCAL: "1"
     volumes:
       - telegram-bot-api-data:/var/lib/telegram-bot-api
     restart: unless-stopped
@@ -83,6 +93,14 @@ services:
   bot:
     <<: *app
     command: ["pdf-to-anki-bot"]
+    # telegram-bot-api (see above) writes downloaded files into
+    # telegram-bot-api-data as uid/gid 101 (its fixed internal
+    # "telegram-bot-api" user) - running as that same uid, rather than the
+    # image's default `app` (10001), is what lets this container actually
+    # read them back. Mounted read-only: the bot never needs to write here.
+    user: "101:101"
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api:ro
 
 volumes:
   minio-data:
