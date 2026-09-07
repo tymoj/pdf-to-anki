@@ -9,8 +9,10 @@ used for the `presents` project.
 1. `git push` to `main` triggers `.github/workflows/deploy.yml`.
 2. **build-push**: builds a multi-arch (amd64/arm64) image from `Dockerfile` and
    pushes it to `ghcr.io/tymoj/pdf-to-anki:latest` (and `:<sha>`).
-3. **deploy**: SSHes into the server, `docker compose pull`s the new image, and
-   `docker compose up -d`s the stack.
+3. **deploy**: copies the repo's `docker-compose.yml` to the server (so a
+   compose-file change actually takes effect, not just an image change), SSHes
+   in, `docker compose pull`s the new image, and `docker compose up -d`s the
+   stack.
 
 The server never builds the image itself — it only pulls what CI already built.
 
