@@ -83,7 +83,9 @@ class S3Settings:
 class BotSettings:
     telegram_bot_token: str
     allowed_usernames: frozenset[str]
-    max_upload_bytes: int = 20 * 1024 * 1024
+    max_upload_bytes: int = 2000 * 1024 * 1024
+    telegram_api_base_url: str = "https://api.telegram.org/bot"
+    telegram_api_base_file_url: str = "https://api.telegram.org/file/bot"
 
     @classmethod
     def load(cls) -> "BotSettings":
@@ -98,7 +100,13 @@ class BotSettings:
         return cls(
             telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
             allowed_usernames=allowed,
-            max_upload_bytes=int(os.environ.get("MAX_UPLOAD_BYTES", 20 * 1024 * 1024)),
+            max_upload_bytes=int(os.environ.get("MAX_UPLOAD_BYTES", 2000 * 1024 * 1024)),
+            telegram_api_base_url=os.environ.get(
+                "TELEGRAM_API_BASE_URL", "https://api.telegram.org/bot"
+            ),
+            telegram_api_base_file_url=os.environ.get(
+                "TELEGRAM_API_BASE_FILE_URL", "https://api.telegram.org/file/bot"
+            ),
         )
 
 

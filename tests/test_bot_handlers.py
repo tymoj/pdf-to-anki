@@ -154,7 +154,7 @@ def test_oversize_is_refused_before_downloading(
     asyncio.run(handlers.handle_document(update, context))
 
     reply = replies(update)[0]
-    assert "limit" in reply and "20 MB" in reply
+    assert "limit" in reply and "1 KB" in reply
     document.get_file.assert_not_called()
     context.application.create_task.assert_not_called()
 
@@ -165,7 +165,7 @@ def test_telegram_download_cap_applies_even_when_configured_higher(
     context.bot_data[handlers.SETTINGS_KEY] = BotSettings(
         telegram_bot_token="not-a-real-token",
         allowed_usernames=parse_usernames("alice"),
-        max_upload_bytes=100 * 1024 * 1024,
+        max_upload_bytes=3000 * 1024 * 1024,
     )
     document = make_document(file_size=handlers.TELEGRAM_GETFILE_LIMIT_BYTES + 1)
     update = make_update(document=document)

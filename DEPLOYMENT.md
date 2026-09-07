@@ -47,7 +47,27 @@ always manual:
 2. Scopes: `read:packages`, `write:packages`
 3. Generate and copy the token
 
-### 4. Set the GitHub repo secrets
+### 4. Get Telegram API credentials for the local Bot API server
+
+The stack runs a local Telegram Bot API server (see the `telegram-bot-api`
+service in `docker-compose.yml`) so uploads/downloads aren't capped at
+Telegram's public 20 MB/50 MB limits. It needs an `api_id`/`api_hash` pair,
+which is separate from the bot token:
+
+1. https://my.telegram.org — log in with a personal Telegram account (not the
+   bot)
+2. "API development tools"
+3. Create an application (any name/platform is fine)
+4. Copy the `api_id` and `api_hash`
+
+Unlike the rest of app config, these two *are* set as GitHub secrets (see the
+next step) — the deploy workflow writes them into the server's `.env` on every
+deploy, so the server never needs them seeded by hand. This is a deliberate
+exception to the "app config lives only in `.env`" rule below, made because
+these credentials rarely change and it removes a manual seeding step; every
+other app config value stays `.env`-only.
+
+### 5. Set the GitHub repo secrets
 
 At `github.com/<owner>/pdf-to-anki/settings/secrets/actions`:
 
@@ -57,12 +77,16 @@ At `github.com/<owner>/pdf-to-anki/settings/secrets/actions`:
 | `SERVER_USER` | SSH username on the server |
 | `SSH_PRIVATE_KEY` | contents of `deploy_key` (the private half from step 2) |
 | `GHCR_TOKEN` | the PAT from step 3 |
+| `TELEGRAM_API_ID` | the `api_id` from step 4 |
+| `TELEGRAM_API_HASH` | the `api_hash` from step 4 |
 
 ```bash
 gh secret set SERVER_HOST --repo <owner>/pdf-to-anki --body "<host>"
 gh secret set SERVER_USER --repo <owner>/pdf-to-anki --body "<user>"
 gh secret set SSH_PRIVATE_KEY --repo <owner>/pdf-to-anki < ./deploy_key
 gh secret set GHCR_TOKEN --repo <owner>/pdf-to-anki   # paste when prompted
+gh secret set TELEGRAM_API_ID --repo <owner>/pdf-to-anki     # paste when prompted
+gh secret set TELEGRAM_API_HASH --repo <owner>/pdf-to-anki   # paste when prompted
 ```
 
 Delete the local `deploy_key`/`deploy_key.pub` files once they're set — the private
@@ -70,9 +94,11 @@ key isn't needed anywhere after this.
 
 **Note:** these are the only secrets the workflow reads. App config
 (`ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, …) is *not* a GitHub secret — see
-below.
+below. `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` are the one exception: the
+workflow reads them and writes them into the server's `.env` on every deploy
+(see `.github/workflows/deploy.yml`), instead of them being seeded by hand.
 
-### 5. Seed the server
+### 6. Seed the server
 
 The project directory and its `.env` are created once, by hand — there's no
 bootstrap script for this project (unlike `presents`, it needs no Traefik routing
@@ -85,7 +111,11 @@ scp docker-compose.yml <user>@<server>:/opt/homelab/projects/pdf-to-anki/
 ```
 
 Create `/opt/homelab/projects/pdf-to-anki/.env` on the server (see
-`.env.example` for the full list). Generate real MinIO credentials — never reuse
+`.env.example` for the full list), including `TELEGRAM_API_ID`/
+`TELEGRAM_API_HASH` from step 4 — `docker-compose.yml` requires them to be
+present the moment anything runs `docker compose up`, and the workflow only
+writes them in from the deploy step onward, not on this first manual bring-up.
+Generate real MinIO credentials — never reuse
 the `minioadmin`/`minioadmin` dev defaults in production:
 
 ```bash
@@ -129,6 +159,11 @@ ssh <user>@<server> "sed -i 's/^CLAUDE_MODEL=.*/CLAUDE_MODEL=claude-haiku-4-5-20
 ssh <user>@<server> 'cd /opt/homelab/projects/pdf-to-anki && sudo docker compose pull && sudo docker compose up -d'
 ```
 
+`TELEGRAM_API_ID`/`TELEGRAM_API_HASH` are the exception to this whole section:
+don't `sed` them on the server directly, since the next deploy overwrites both
+from the GitHub secrets of the same name (see step 4 above). Change the GitHub
+secret instead, then push (or re-run the deploy workflow) to roll it out.
+
 ## Verify
 
 ```bash
@@ -137,7 +172,9 @@ ssh <user>@<server> 'cd /opt/homelab/projects/pdf-to-anki && sudo docker compose
 ```
 
 A healthy start logs, in order: the allowlist size, `storage ready`, and
-`Application started`.
+`Application started`. `docker compose ps` should also show a
+`telegram-bot-api` container running — it has no explicit healthcheck, just
+runs.
 
 ## Troubleshooting
 
@@ -159,3 +196,8 @@ bot/worker-level issues. Deploy-specific ones:
   `GHCR_TOKEN`.
 - **Bot container restarts in a loop.** `docker compose logs bot` — almost
   always a missing/invalid value in the server's `.env`.
+- **Bot container fails to start, or logs show it can't reach the Telegram
+  API.** Check `docker compose logs telegram-bot-api` for auth errors — usually
+  a wrong or missing `TELEGRAM_API_ID`/`TELEGRAM_API_HASH` in `.env`. Also note
+  that container's first boot can take a few seconds to authenticate with
+  Telegram before the bot can use it.

@@ -90,6 +90,7 @@ Fill in:
 | `ANTHROPIC_API_KEY` | required |
 | `TELEGRAM_BOT_TOKEN` | required — the worker needs it too, since it sends the deck |
 | `TELEGRAM_ALLOWED_USERNAMES` | required; the bot refuses to start with an empty allowlist |
+| `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` | required; free from https://my.telegram.org — used by the local Bot API server sidecar to raise Telegram's 20 MB/50 MB limits to 2000 MB |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | become MinIO's root credentials — change them from `minioadmin` |
 
 `REDIS_URL` and `S3_ENDPOINT_URL` are overridden in `docker-compose.yml` with the
@@ -141,9 +142,9 @@ before the bot or worker starts.
 - **"Storage is unavailable"**, or the worker dies at startup. `docker compose ps
   minio` should show `healthy`, and `docker compose logs minio-init` should end with
   `bucket ready`. `docker compose restart minio-init` recreates the bucket.
-- **A deck arrives as a link instead of a file.** It was over Telegram's 50 MB limit
-  for bot uploads. If the link does not open, `S3_PUBLIC_ENDPOINT_URL` is pointing
-  somewhere the recipient cannot reach.
+- **A deck arrives as a link instead of a file.** It was over the local Bot API
+  server's 2000 MB limit for bot uploads. If the link does not open,
+  `S3_PUBLIC_ENDPOINT_URL` is pointing somewhere the recipient cannot reach.
 - **"No question-marked text found".** The marker colour does not match that PDF; see
   `QUESTION_MARKER_RGB` above. This is a permanent failure and is not retried.
 

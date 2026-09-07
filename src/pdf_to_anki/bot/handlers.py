@@ -21,8 +21,11 @@ SETTINGS_KEY = "settings"
 AUTHORIZER_KEY = "authorizer"
 STORAGE_KEY = "storage"
 
-#: The Bot API refuses getFile for anything larger, whatever MAX_UPLOAD_BYTES says.
-TELEGRAM_GETFILE_LIMIT_BYTES = 20 * 1024 * 1024
+#: Whichever Bot API server TELEGRAM_API_BASE_URL points at, it refuses getFile
+#: past this regardless of MAX_UPLOAD_BYTES. 2000 MB is the local Bot API
+#: server's cap (see docker-compose.yml's telegram-bot-api service); the public
+#: api.telegram.org caps at 20 MB instead.
+TELEGRAM_GETFILE_LIMIT_BYTES = 2000 * 1024 * 1024
 
 _AUTH_MARKER = "__pdf_to_anki_auth_checked__"
 
@@ -94,8 +97,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await _reply(
             update,
             f"That file is {_human_size(size)}; my limit is {_human_size(limit)}. "
-            "Telegram's Bot API won't let me download files larger than 20 MB, "
-            "so please split the PDF or compress it.",
+            "Please split the PDF or compress it.",
         )
         return
 

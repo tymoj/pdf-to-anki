@@ -26,9 +26,11 @@ from ..storage import Storage, StorageError
 
 logger = logging.getLogger(__name__)
 
-# The Bot API refuses documents larger than this. Past it we hand out a
-# pre-signed link instead of the file itself.
-TELEGRAM_MAX_DOCUMENT_BYTES = 50 * 1024 * 1024
+# Whichever Bot API server the bot is configured against refuses documents
+# larger than this. Past it we hand out a pre-signed link instead of the file
+# itself. 2000 MB is the local Bot API server's cap (see docker-compose.yml's
+# telegram-bot-api service); the public api.telegram.org caps at 50 MB instead.
+TELEGRAM_MAX_DOCUMENT_BYTES = 2000 * 1024 * 1024
 
 # Long enough that someone can come back to the link after reading the message.
 PRESIGNED_URL_TTL_SECONDS = 24 * 3600

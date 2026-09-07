@@ -17,14 +17,27 @@ x-app: &app
     # hostname above. Set it to your public address when not testing locally.
     S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
     LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    TELEGRAM_API_BASE_URL: http://telegram-bot-api:8081/bot
+    TELEGRAM_API_BASE_FILE_URL: http://telegram-bot-api:8081/file/bot
   depends_on:
     minio:
       condition: service_healthy
     minio-init:
       condition: service_completed_successfully
+    telegram-bot-api:
+      condition: service_started
   restart: unless-stopped
 
 services:
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:?set TELEGRAM_API_ID in .env - get one free from https://my.telegram.org}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:?set TELEGRAM_API_HASH in .env - get one free from https://my.telegram.org}
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    restart: unless-stopped
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -73,3 +86,4 @@ services:
 
 volumes:
   minio-data:
+  telegram-bot-api-data:

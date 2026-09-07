@@ -49,5 +49,11 @@ jobs:
           script: |
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u tymoj --password-stdin
             cd /opt/homelab/projects/pdf-to-anki
+            sudo grep -q '^TELEGRAM_API_ID=' .env \
+              && sudo sed -i "s|^TELEGRAM_API_ID=.*|TELEGRAM_API_ID=${{ secrets.TELEGRAM_API_ID }}|" .env \
+              || echo "TELEGRAM_API_ID=${{ secrets.TELEGRAM_API_ID }}" | sudo tee -a .env > /dev/null
+            sudo grep -q '^TELEGRAM_API_HASH=' .env \
+              && sudo sed -i "s|^TELEGRAM_API_HASH=.*|TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}|" .env \
+              || echo "TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}" | sudo tee -a .env > /dev/null
             sudo docker compose pull
             sudo docker compose up -d
